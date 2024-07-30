@@ -114,7 +114,25 @@ class BiSQLView(models.Model):
     model_id = fields.Many2one(
         string="Odoo Model", comodel_name="ir.model", readonly=True
     )
+    # UI related fields
+    # 1. Editable fields, which can be set by the user (optional) before
+    # creating the UI elements
 
+    @api.model
+    def _default_parent_menu_id(self):
+        return self.env.ref("bi_sql_editor.menu_bi_sql_editor")
+
+    parent_menu_id = fields.Many2one(
+        string="Parent Odoo Menu",
+        comodel_name="ir.ui.menu",
+        required=True,
+        default=lambda self: self._default_parent_menu_id(),
+        help="By assigning a value to this field before manually creating the "
+        "UI, you're overwriting the parent menu on which the menu related to "
+        "the SQL report will be created.",
+    )
+
+    # 2. Readonly fields, non editable by the user
     tree_view_id = fields.Many2one(
         string="Odoo Tree View", comodel_name="ir.ui.view", readonly=True
     )
@@ -491,7 +509,7 @@ class BiSQLView(models.Model):
         self.ensure_one()
         return {
             "name": self.name,
-            "parent_id": self.env.ref("bi_sql_editor.menu_bi_sql_editor").id,
+            "parent_id": self.parent_menu_id.id,
             "action": "ir.actions.act_window,%s" % self.action_id.id,
             "sequence": self.sequence,
         }
@@ -533,7 +551,8 @@ class BiSQLView(models.Model):
                 lambda x: x.is_index is True
             ):
                 self._log_execute(
-                    f"CREATE INDEX {sql_field.index_name} ON {sql_view.view_name} ({sql_field.name});"
+                    f"CREATE INDEX {sql_field.index_name} ON {sql_view.view_name} "
+                    f"({sql_field.name});"
                 )
 
     def _create_model_and_fields(self):
